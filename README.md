@@ -264,22 +264,26 @@ Konga GUI will be available at `http://localhost:1337`
 
 ### Docker Compose
 
-[`docker-compose.yml`](./docker-compose.yml) in this repository brings up the whole thing — Kong,
-Kong's database, Konga on **PostgreSQL 17**, and the one-shot Konga migration job:
+[`docker-compose.yml`](./docker-compose.yml) runs Konga on **PostgreSQL 17**, together with the
+one-shot migration job it needs:
 
 ```
 $ docker compose up -d
 ```
 
-Konga is then on http://localhost:1337, Kong's admin API on http://localhost:8001. The
-`konga-prepare` service runs the migrations and exits; `konga` waits for it to finish, so a plain
-`up -d` is all that is needed. Change `TOKEN_SECRET` and the database passwords before using it
-for anything real.
+Konga is then on http://localhost:1337. The `konga-prepare` service runs the migrations and exits;
+`konga` waits for it to finish, so a plain `up -d` is all that is needed. Change `TOKEN_SECRET`
+and the database passwords before using it for anything real.
 
-> Kong's own database stays on `postgres:9.6` there **on purpose**. Kong 1.5 ships a pgmoon that
-> cannot do SCRAM-SHA-256, so it fails against PostgreSQL 14+ with
-> `Error: don't know how to auth: 10` — the same class of problem this fork fixes for Konga.
-> Konga has its own `konga-database` service, and that one is PostgreSQL 17.
+It deliberately does **not** start Kong. Konga reaches Kong over Kong's Admin API, whose URL you
+enter in the Konga UI after logging in — no shared database and no shared network required. If
+your Kong does run in Docker and you want them on one network anyway, uncomment the `networks:`
+blocks in the file.
+
+> Careful if you were thinking of putting Kong on PostgreSQL 17 too: Kong 1.5 ships a pgmoon that
+> cannot do SCRAM-SHA-256 and dies against PostgreSQL 14+ with `Error: don't know how to auth: 10`
+> — the same class of problem this fork fixes for Konga. Konga's database is separate, so it is
+> free to be 17.
 
 ### Production Docker Image
 
