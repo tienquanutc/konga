@@ -1,0 +1,9 @@
+{
+  "name": "sails-postgresql",
+  "version": "0.11.4-konga.1",
+  "description": "Konga's vendored copy of sails-postgresql@0.11.4, patched for PostgreSQL 12-17 and node-postgres 8.x",
+  "main": "lib/adapter.js",
+  "license": "MIT",
+  "private": true,
+  "_comment": "This folder is loaded by Sails as a custom adapter (see api/adapters). Its runtime dependencies (pg, async, lodash, waterline-*) are declared in the root package.json."
+}

@@ -70,8 +70,12 @@ module.exports.connections = {
    * PostgreSQL is another officially supported relational database.
    * http://en.wikipedia.org/wiki/PostgreSQL
    *
-   * Run:
-   * npm install sails-postgresql
+   * Supported server versions: 9.5 -> 17.
+   *
+   * The adapter is Konga's own patched copy of sails-postgresql, which lives in
+   * `api/adapters/sails-postgresql/` and is picked up automatically by Sails.
+   * See that folder's README.md for what had to change to support PostgreSQL
+   * 12+ (dropped `adsrc`/`consrc` catalog columns) and 14+ (SCRAM-SHA-256).
    */
   postgres: {
     adapter: 'sails-postgresql',
@@ -83,7 +87,19 @@ module.exports.connections = {
     database: process.env.DB_DATABASE ||'konga_database',
     // schema: process.env.DB_PG_SCHEMA ||'public',
     poolSize: process.env.DB_POOLSIZE || 10,
-    ssl: process.env.DB_SSL ? true : false // If set, assume it's true
+
+    // `ssl` accepts `false`, `true`, or any `tls.connect()` options object.
+    //
+    // node-postgres 8 verifies the server certificate when `ssl` is `true`,
+    // which the driver Konga used before never did. To avoid breaking existing
+    // deployments (managed Postgres services almost always present a
+    // certificate signed by their own CA), `true` keeps the old, unverified
+    // behaviour. Set DB_SSL_REJECT_UNAUTHORIZED=true to turn verification on --
+    // or replace this value with e.g.
+    // `{ ca: require('fs').readFileSync('/path/to/server-ca.pem').toString() }`.
+    ssl: isTruthy(process.env.DB_SSL) ? {
+      rejectUnauthorized: isTruthy(process.env.DB_SSL_REJECT_UNAUTHORIZED)
+    } : false
   },
 
   /**
@@ -101,3 +117,14 @@ module.exports.connections = {
     database: process.env.DB_DATABASE ||'konga_database'
   },
 };
+
+
+/**
+ * Interpret an environment variable as a boolean.
+ * (`DB_SSL=false` used to switch SSL *on*, because any non-empty string is
+ *  truthy in JS.)
+ */
+function isTruthy(value) {
+  if (!value) return false;
+  return ['false', '0', 'no', 'off'].indexOf(String(value).toLowerCase()) === -1;
+}
