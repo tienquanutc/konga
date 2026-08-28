@@ -1,0 +1,7 @@
+# Shell scripts must keep LF line endings.
+#
+# `start.sh` is the Docker image's ENTRYPOINT. On a Windows checkout git would
+# otherwise convert it to CRLF, the Linux kernel cannot parse the resulting
+# `#!/bin/bash\r` shebang, and every container dies immediately with
+#   exec /app/start.sh: no such file or directory
+*.sh text eol=lf
