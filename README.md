@@ -262,31 +262,43 @@ $ npm run production
 Konga GUI will be available at `http://localhost:1337`
 
 
+### Docker Compose
+
+[`docker-compose.yml`](./docker-compose.yml) in this repository brings up the whole thing — Kong,
+Kong's database, Konga on **PostgreSQL 17**, and the one-shot Konga migration job:
+
+```
+$ docker compose up -d
+```
+
+Konga is then on http://localhost:1337, Kong's admin API on http://localhost:8001. The
+`konga-prepare` service runs the migrations and exits; `konga` waits for it to finish, so a plain
+`up -d` is all that is needed. Change `TOKEN_SECRET` and the database passwords before using it
+for anything real.
+
+> Kong's own database stays on `postgres:9.6` there **on purpose**. Kong 1.5 ships a pgmoon that
+> cannot do SCRAM-SHA-256, so it fails against PostgreSQL 14+ with
+> `Error: don't know how to auth: 10` — the same class of problem this fork fixes for Konga.
+> Konga has its own `konga-database` service, and that one is PostgreSQL 17.
+
 ### Production Docker Image
 
-> **The published `pantsel/konga` images do not contain the PostgreSQL 12+ fix.** They were built
-> from upstream and will still fail with `column d.adsrc does not exist`. Build the image from
-> this repository instead:
->
-> ```
-> $ git clone https://github.com/tienquanutc/konga.git
-> $ cd konga
-> $ docker build -t konga:pg .
-> ```
->
-> On Windows, clone with `git config --global core.autocrlf input` (or run the build from WSL) —
-> see [FAQ #5](#5-docker-image-fails-with-exec-appstartsh-no-such-file-or-directory).
+Use [`tienquandev/konga`](https://hub.docker.com/r/tienquandev/konga), built from this repository:
+
+> The upstream `pantsel/konga` images do **not** contain the PostgreSQL 12+ fix — they still die
+> with `column d.adsrc does not exist`. Use `tienquandev/konga`, or build your own from this
+> repository with `docker build -t konga .`.
 
 The following instructions assume that you have a running Kong instance following the
 instructions from [Kong's docker hub](https://hub.docker.com/_/kong/)
 ```
-$ docker pull pantsel/konga
+$ docker pull tienquandev/konga:latest
 $ docker run -p 1337:1337 \
              --network {{kong-network}} \ // optional
              --name konga \
              -e "NODE_ENV=production" \ // or "development" | defaults to 'development'
              -e "TOKEN_SECRET={{somerandomstring}}" \
-             pantsel/konga
+             tienquandev/konga:latest
 ```
 
 #### To use one of the supported databases
@@ -305,7 +317,7 @@ argument  | description | default
 -u     | full database connection url | -
 
 ```
-$ docker run --rm pantsel/konga:latest -c prepare -a {{adapter}} -u {{connection-uri}}
+$ docker run --rm tienquandev/konga:latest -c prepare -a {{adapter}} -u {{connection-uri}}
 ```
 
 
@@ -323,7 +335,7 @@ $ docker run -p 1337:1337
              -e "DB_PG_SCHEMA=my-schema"\ // Optionally define a schema when integrating with prostgres
              -e "NODE_ENV=production" \ // or 'development' | defaults to 'development'
              --name konga \
-             pantsel/konga
+             tienquandev/konga:latest
              
              
  // Alternatively you can use the full connection string to connect to a database
@@ -334,7 +346,7 @@ $ docker run -p 1337:1337
               -e "DB_URI=full-connection-uri" \
               -e "NODE_ENV=production" \ // or 'development' | defaults to 'development'
               --name konga \
-              pantsel/konga
+              tienquandev/konga:latest
 ```
 
 
@@ -353,7 +365,7 @@ Then stop the app and run it again in production mode.
 
 if you're using docker, you can lift an ephemeral container, as stated before:
 ```
-$ docker run --rm pantsel/konga:latest -c prepare -a {{adapter}} -u {{connection-uri}}
+$ docker run --rm tienquandev/konga:latest -c prepare -a {{adapter}} -u {{connection-uri}}
 ```
 
 ## FAQ
@@ -422,7 +434,7 @@ created and every request fails. Run the migration step once against the same co
 start the app:
 
 ```
-$ docker run --rm --network {{network}} konga -c prepare -a postgres -u {{connection-uri}}
+$ docker run --rm --network {{network}} tienquandev/konga -c prepare -a postgres -u {{connection-uri}}
 ```
 
 With `DB_PG_SCHEMA` set, `prepare` creates that schema as well — it does not have to exist
