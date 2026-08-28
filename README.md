@@ -384,18 +384,18 @@ may take longer to complete. You can fix that by setting then env var `KONGA_HOO
 greater than 60000, like 120000.
 
 ##### 5. Docker image fails with `exec /app/start.sh: no such file or directory`
-The file is there — its line endings are not. Git on Windows checks `start.sh` out with CRLF by
-default (`core.autocrlf=true`), and the Linux kernel then cannot parse the `#!/bin/bash
-`
-shebang. Re-clone with
+The file is there — its line endings are not. Git on Windows used to check `start.sh` out with
+CRLF line endings, and the kernel cannot parse a shebang line with a carriage return glued to the
+end of it, so the container died the instant it started.
+
+A [`.gitattributes`](./.gitattributes) now pins `*.sh` to LF, so a fresh clone builds correctly.
+If you cloned before that, renormalize your working copy and rebuild:
 
 ```
-$ git config --global core.autocrlf input
+$ git pull
+$ rm start.sh && git checkout -- start.sh
+$ docker build -t konga .
 ```
-
-or build the image from WSL / a Linux host. As a one-off workaround you can convert the file in
-place: `sed -i 's/
-$//' start.sh`.
 
 ##### 6. `error: column d.adsrc does not exist` on startup
 You are running upstream Konga (or a `pantsel/konga` image) against PostgreSQL 12 or newer.
@@ -405,6 +405,18 @@ Use this fork — see [About this fork](#about-this-fork).
 Your PostgreSQL is using `scram-sha-256` (the default since PostgreSQL 14) and upstream Konga's
 `pg@4` driver cannot speak it. Use this fork — see [About this fork](#about-this-fork).
 
+
+##### 8. `relation "public.konga_users" does not exist` on startup
+Konga deliberately skips database migrations when `NODE_ENV=production`, so the tables are never
+created and every request fails. Run the migration step once against the same connection, then
+start the app:
+
+```
+$ docker run --rm --network {{network}} konga -c prepare -a postgres -u {{connection-uri}}
+```
+
+With `DB_PG_SCHEMA` set, `prepare` creates that schema as well — it does not have to exist
+beforehand, and the error message names your schema instead of `public`.
 
 ## More Kong related stuff
 - [**Kong Admin proxy**](https://github.com/pantsel/kong-admin-proxy)
