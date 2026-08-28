@@ -384,18 +384,28 @@ may take longer to complete. You can fix that by setting then env var `KONGA_HOO
 greater than 60000, like 120000.
 
 ##### 5. Docker image fails with `exec /app/start.sh: no such file or directory`
-The file is there — its line endings are not. Git on Windows used to check `start.sh` out with
-CRLF line endings, and the kernel cannot parse a shebang line with a carriage return glued to the
-end of it, so the container died the instant it started.
+The file is there — its line endings are not. Git on Windows checks `start.sh` out with CRLF, and
+the kernel cannot parse a shebang line with a carriage return glued to the end of it, so the
+container dies the instant it starts.
 
-A [`.gitattributes`](./.gitattributes) now pins `*.sh` to LF, so a fresh clone builds correctly.
-If you cloned before that, renormalize your working copy and rebuild:
+Two things now prevent this: a [`.gitattributes`](./.gitattributes) pins `*.sh` to LF for fresh
+clones, and the [`Dockerfile`](./Dockerfile) strips CR from the shell scripts at build time, so
+the image is correct even if your working copy is not. Just update and rebuild:
 
 ```
 $ git pull
-$ rm start.sh && git checkout -- start.sh
 $ docker build -t konga .
 ```
+
+If it still fails, you are running an image built before that change — check what is actually
+inside it:
+
+```
+$ docker run --rm --entrypoint sh konga -c "head -1 /app/start.sh | od -c | head -1"
+```
+
+A `
+A carriage return there — `od` prints it as `\r` — means the image is stale; rebuild with `docker build --no-cache -t konga .`
 
 ##### 6. `error: column d.adsrc does not exist` on startup
 You are running upstream Konga (or a `pantsel/konga` image) against PostgreSQL 12 or newer.
