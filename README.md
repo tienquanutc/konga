@@ -1,7 +1,23 @@
-## More than just another GUI to [KONG Admin API](http://getkong.org)    [![Build Status](https://travis-ci.org/pantsel/konga.svg?branch=master)](https://travis-ci.org/pantsel/konga)    [![Gitter chat](https://badges.gitter.im/pantsel-konga/Lobby.png)](https://gitter.im/pantsel-konga/Lobby)
+# Konga
 
+### More than just another GUI to the [Kong Admin API](https://docs.konghq.com/gateway/latest/admin-api/) — running on today's PostgreSQL.
 
-[![Dashboard](screenshots/bc3.png)](https://raw.githubusercontent.com/pantsel/konga/master/screenshots/bc2.png)
+[![PostgreSQL 9.6 - 18](https://img.shields.io/badge/PostgreSQL-9.6%20%E2%80%93%2018-336791?logo=postgresql&logoColor=white)](#about-this-fork)
+[![Kong 1.x](https://img.shields.io/badge/Kong-1.x-003459?logo=kong&logoColor=white)](#compatibility)
+[![Node.js >=8 <=12.x](https://img.shields.io/badge/Node.js-%3E%3D8%20%E2%80%93%2012.x-43853d?logo=nodedotjs&logoColor=white)](#prerequisites)
+[![License MIT](https://img.shields.io/badge/license-MIT-blue)](#license)
+[![Gitter chat](https://img.shields.io/badge/chat-gitter-ed1965?logo=gitter&logoColor=white)](https://gitter.im/pantsel-konga/Lobby)
+
+Konga is a web GUI for administering [Kong](https://konghq.com/): manage services, routes,
+consumers, plugins, certificates and upstreams across **multiple Kong nodes**, take and restore
+**snapshots**, watch node and API **health checks**, and get notified by **email or Slack** — with
+its own multi-user accounts and API on top.
+
+This repository is a fork of [pantsel/konga](https://github.com/pantsel/konga), which has had no
+release since 2020. Its headline change: **Konga starts and runs on PostgreSQL 12, 14, 16, 17 and
+18** — versions upstream cannot boot against at all. See [About this fork](#about-this-fork).
+
+![Konga dashboard](screenshots/bc3.png)
 
 _Konga is not an official app. No affiliation with [Kong](https://www.konghq.com/)._
 
@@ -9,10 +25,7 @@ _Konga is not an official app. No affiliation with [Kong](https://www.konghq.com
 
 ## About this fork
 
-[github.com/tienquanutc/konga](https://github.com/tienquanutc/konga) — a fork of
-[pantsel/konga](https://github.com/pantsel/konga), which has had no release since 2020.
-
-**What this fork adds: Konga runs on modern PostgreSQL (tested on 9.6, 12, 14, 16, 17 and 18).**
+**What it adds: Konga runs on modern PostgreSQL — tested on 9.6, 12, 14, 16, 17 and 18.**
 
 Upstream Konga cannot start against any PostgreSQL newer than 11. It bundles
 `sails-postgresql@0.11.4` — the last release compatible with Waterline 0.12 / Sails 0.12 — and
@@ -372,7 +385,8 @@ greater than 60000, like 120000.
 
 ##### 5. Docker image fails with `exec /app/start.sh: no such file or directory`
 The file is there — its line endings are not. Git on Windows checks `start.sh` out with CRLF by
-default (`core.autocrlf=true`), and the Linux kernel then cannot parse the `#!/bin/bash`
+default (`core.autocrlf=true`), and the Linux kernel then cannot parse the `#!/bin/bash
+`
 shebang. Re-clone with
 
 ```
@@ -380,7 +394,8 @@ $ git config --global core.autocrlf input
 ```
 
 or build the image from WSL / a Linux host. As a one-off workaround you can convert the file in
-place: `sed -i 's/$//' start.sh`.
+place: `sed -i 's/
+$//' start.sh`.
 
 ##### 6. `error: column d.adsrc does not exist` on startup
 You are running upstream Konga (or a `pantsel/konga` image) against PostgreSQL 12 or newer.
