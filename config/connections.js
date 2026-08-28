@@ -70,7 +70,7 @@ module.exports.connections = {
    * PostgreSQL is another officially supported relational database.
    * http://en.wikipedia.org/wiki/PostgreSQL
    *
-   * Supported server versions: 9.5 -> 17.
+   * Tested against PostgreSQL 9.6, 12, 14, 16, 17 and 18.
    *
    * The adapter is Konga's own patched copy of sails-postgresql, which lives in
    * `api/adapters/sails-postgresql/` and is picked up automatically by Sails.

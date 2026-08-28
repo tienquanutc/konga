@@ -168,7 +168,7 @@ module.exports = (function() {
         // NOTE: `pg_constraint.consrc` and `pg_attrdef.adsrc` were dropped in
         // PostgreSQL 12. `pg_get_constraintdef()` / `pg_get_expr()` are the
         // supported replacements and they work on every server >= 8.x, so this
-        // query is compatible with 9.x all the way up to 17.
+        // query is compatible with 9.x all the way up to 18.
         var query = "SELECT x.nspname || '.' || x.relname as \"Table\", x.attnum as \"#\", x.attname as \"Column\", x.\"Type\"," +
           " case x.attnotnull when true then 'NOT NULL' else '' end as \"NULL\", r.conname as \"Constraint\", r.contype as \"C\", " +
           "pg_catalog.pg_get_constraintdef(r.oid) as consrc, fn.nspname || '.' || f.relname as \"F Key\", " +

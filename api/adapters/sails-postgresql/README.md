@@ -25,6 +25,16 @@ The upstream 0.11.x adapter cannot talk to a modern PostgreSQL server:
 - `lib/adapter.js`, `lib/utils.js`, `lib/processor.js` — upstream sources with the patches above.
 - `lib/connection-pool.js` — new; the `pg@4` -> `pg@8` compatibility layer (pooling, `poolSize` -> `max`, `ssl` normalization, pool teardown).
 
+## Verified against
+
+PostgreSQL **9.6, 12, 14, 16, 17 and 18** (12 and up configured with `scram-sha-256`), from both
+Node 22 and the `node:12.16-alpine` image the Dockerfile is built on. Coverage: first boot and
+re-boot on an existing schema, table definition and description, CRUD, associations/joins, JSON /
+text / float / datetime round trips, custom schemas, raw queries, 40 concurrent queries on a pool
+of 5, `.stream()`, unique-violation mapping, TLS with and without certificate verification, pool
+recovery after a database restart, no leaked connections after teardown, and a 9.6 dump restored
+onto 18.
+
 ## Upgrading
 
 `git diff` this folder against the upstream tarball to see the full delta:

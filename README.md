@@ -5,8 +5,57 @@
 
 _Konga is not an official app. No affiliation with [Kong](https://www.konghq.com/)._
 
+---
+
+## About this fork
+
+[github.com/tienquanutc/konga](https://github.com/tienquanutc/konga) — a fork of
+[pantsel/konga](https://github.com/pantsel/konga), which has had no release since 2020.
+
+**What this fork adds: Konga runs on modern PostgreSQL (tested on 9.6, 12, 14, 16, 17 and 18).**
+
+Upstream Konga cannot start against any PostgreSQL newer than 11. It bundles
+`sails-postgresql@0.11.4` — the last release compatible with Waterline 0.12 / Sails 0.12 — and
+that adapter breaks twice on a modern server:
+
+| Upstream problem | What you see | Since |
+| --- | --- | --- |
+| `describe()` reads `pg_attrdef.adsrc` and `pg_constraint.consrc`, two catalog columns that no longer exist | `error: column d.adsrc does not exist` at startup; Konga never creates its tables | PostgreSQL **12** |
+| it pins `pg@4`, which predates SCRAM-SHA-256 | `SASL authentication not supported` / `client password must be a string` | PostgreSQL **14** (default), **18** (md5 removed entirely) |
+
+The fix is a patched copy of the adapter in
+[`api/adapters/sails-postgresql/`](./api/adapters/sails-postgresql/README.md), which Sails loads
+automatically as a custom adapter, plus `pg ~8.14.1` as a top-level dependency. See that folder's
+README for the full list of patches (catalog queries, `pg.connect` → `pg.Pool`, `stream()`,
+lodash 4 fixes, TLS handling).
+
+**Nothing else changes.** `DB_ADAPTER=postgres` keeps working as documented, PostgreSQL 9.6 → 11
+behave exactly as before, and the `node:12.16-alpine` Docker build is untouched.
+
+### Two notes when upgrading from upstream Konga
+
+* **`DB_SSL=false` used to enable TLS.** Any non-empty string is truthy in JavaScript, so
+  `DB_SSL=false` switched SSL *on*. It now means what it says. If you relied on the old
+  behaviour, use `DB_SSL=true`.
+* **Certificate verification stays off by default.** `pg@8` verifies the server certificate when
+  `ssl` is `true`; `pg@4` never did. To avoid breaking deployments with a self-signed certificate,
+  `DB_SSL=true` keeps the old, unverified behaviour — set `DB_SSL_REJECT_UNAUTHORIZED=true` to
+  turn verification on.
+
+### What was verified
+
+Against real PostgreSQL 9.6, 12, 14, 16, 17 and 18 servers (12 and up with `scram-sha-256`):
+first boot and re-boot on an existing schema, Konga's own test suite, the REST API
+(registration, JWT login, CRUD, associations, filters, policies), TLS with and without
+certificate verification, connection-pool recovery after a database restart, no leaked
+connections after shutdown, a 9.6 dump restored onto 18, Node 12.16-alpine, and a full
+`docker build` + run.
+
+---
+
 ## Summary
 
+- [**About this fork**](#about-this-fork)
 - [**Discussions & Support**](#discussions--support)
 - [**Features**](#features)
 - [**Compatibility**](#compatibility)
@@ -34,13 +83,21 @@ If you need to discuss anything Konga related, we have a chatroom on Gitter:
 * Monitor Node and API states using health checks.
 * Email & Slack notifications.
 * Multiple users.
-* Easy database integration (MySQL, postgresSQL, MongoDB).
+* Easy database integration (MySQL, PostgreSQL 9.6 - 18, MongoDB).
 
 ## Compatibility
 **From 0.14.0 onwards, Konga is ONLY compatible with Kong 1.x**
 
 If you're on an older Kong version , use [this](https://github.com/pantsel/konga/tree/legacy) branch 
 or `konga:legacy` from docker hub instead.
+
+| | Supported |
+| --- | --- |
+| Kong | 1.x |
+| Node.js | >= 8, <= 12.x (12.16 LTS recommended) |
+| PostgreSQL | **9.6 - 18** (see [About this fork](#about-this-fork)) |
+| MySQL | 5.x |
+| MongoDB | 3.x |
 
 ## Prerequisites
 - A running [Kong installation](https://getkong.org/) 
@@ -57,7 +114,7 @@ Install `npm` and `node.js`. Instructions can be found [here](http://sailsjs.org
 
 Install `bower`, ad `gulp` packages.
 ```
-$ git clone https://github.com/pantsel/konga.git
+$ git clone https://github.com/tienquanutc/konga.git
 $ cd konga
 $ npm i
 ```
@@ -114,24 +171,51 @@ The application also supports some of the most popular databases out of the box:
 
 1. MySQL
 2. MongoDB
-3. PostgresSQL (**9.5 -> 17**)
+3. PostgreSQL (**9.6 - 18**)
 
 In order to use them, set the appropriate env vars in your `.env` file.
 
-#### PostgreSQL 12 - 17
+#### PostgreSQL
 
-Konga ships its own patched PostgreSQL adapter in
-[`api/adapters/sails-postgresql`](./api/adapters/sails-postgresql/README.md). The upstream
-`sails-postgresql@0.11.x` package cannot talk to a modern server, because:
+Nothing special to configure — `DB_ADAPTER=postgres` uses the patched adapter shipped in
+[`api/adapters/sails-postgresql/`](./api/adapters/sails-postgresql/README.md), which works on
+every server from 9.6 to 18. See [About this fork](#about-this-fork) for why upstream Konga
+cannot.
 
-* it queries `pg_attrdef.adsrc` / `pg_constraint.consrc`, two catalog columns **removed in
-  PostgreSQL 12** (`error: column d.adsrc does not exist` on startup, no tables ever created);
-* it pins `pg@4`, which predates **SCRAM-SHA-256** - the default password encryption since
-  PostgreSQL 14 (`SASL authentication not supported`).
+```dotenv
+DB_ADAPTER=postgres
+DB_URI=postgresql://konga:secret@postgres:5432/konga
+# ...or the discrete form:
+# DB_HOST=postgres
+# DB_PORT=5432
+# DB_USER=konga
+# DB_PASSWORD=secret
+# DB_DATABASE=konga
+```
 
-No configuration change is needed: `DB_ADAPTER=postgres` picks up the patched adapter
-automatically, and PostgreSQL 9.5 - 11 keep working exactly as before.
- 
+**TLS.** Set `DB_SSL=true` to connect over TLS. The server certificate is *not* verified by
+default, which is what most managed PostgreSQL services (RDS, Cloud SQL, Azure, Supabase, ...)
+need out of the box. Add `DB_SSL_REJECT_UNAUTHORIZED=true` once you trust the certificate chain:
+
+```dotenv
+DB_SSL=true
+DB_SSL_REJECT_UNAUTHORIZED=true
+```
+
+For a private CA, set `ssl` to a full [`tls.connect()`](https://nodejs.org/api/tls.html) options
+object in `config/connections.js`, e.g.
+`ssl: { ca: require('fs').readFileSync('/certs/server-ca.pem').toString() }`.
+
+**Creating the database.** When `NODE_ENV` is not `production`, Konga creates the database on
+startup if it does not exist. In production, run the migration step once instead:
+
+```
+$ node ./bin/konga.js prepare --adapter postgres --uri postgresql://konga:secret@postgres:5432/konga
+```
+
+**Schema.** Set `DB_PG_SCHEMA` to put Konga's tables in a schema other than `public`; the
+adapter creates it if needed.
+
 
 ## Running Konga
 
@@ -166,6 +250,19 @@ Konga GUI will be available at `http://localhost:1337`
 
 
 ### Production Docker Image
+
+> **The published `pantsel/konga` images do not contain the PostgreSQL 12+ fix.** They were built
+> from upstream and will still fail with `column d.adsrc does not exist`. Build the image from
+> this repository instead:
+>
+> ```
+> $ git clone https://github.com/tienquanutc/konga.git
+> $ cd konga
+> $ docker build -t konga:pg .
+> ```
+>
+> On Windows, clone with `git config --global core.autocrlf input` (or run the build from WSL) —
+> see [FAQ #5](#5-docker-image-fails-with-exec-appstartsh-no-such-file-or-directory).
 
 The following instructions assume that you have a running Kong instance following the
 instructions from [Kong's docker hub](https://hub.docker.com/_/kong/)
@@ -273,6 +370,26 @@ the memory the host machine has available, startup tasks like code minification 
 may take longer to complete. You can fix that by setting then env var `KONGA_HOOK_TIMEOUT` to something
 greater than 60000, like 120000.
 
+##### 5. Docker image fails with `exec /app/start.sh: no such file or directory`
+The file is there — its line endings are not. Git on Windows checks `start.sh` out with CRLF by
+default (`core.autocrlf=true`), and the Linux kernel then cannot parse the `#!/bin/bash`
+shebang. Re-clone with
+
+```
+$ git config --global core.autocrlf input
+```
+
+or build the image from WSL / a Linux host. As a one-off workaround you can convert the file in
+place: `sed -i 's/$//' start.sh`.
+
+##### 6. `error: column d.adsrc does not exist` on startup
+You are running upstream Konga (or a `pantsel/konga` image) against PostgreSQL 12 or newer.
+Use this fork — see [About this fork](#about-this-fork).
+
+##### 7. `SASL authentication not supported` / `client password must be a string`
+Your PostgreSQL is using `scram-sha-256` (the default since PostgreSQL 14) and upstream Konga's
+`pg@4` driver cannot speak it. Use this fork — see [About this fork](#about-this-fork).
+
 
 ## More Kong related stuff
 - [**Kong Admin proxy**](https://github.com/pantsel/kong-admin-proxy)
@@ -280,7 +397,9 @@ greater than 60000, like 120000.
 
 ## Author
 
-Panagis Tselentis
+Panagis Tselentis — original author of [Konga](https://github.com/pantsel/konga).
+
+PostgreSQL 12 - 18 support in this fork: [tienquanutc](https://github.com/tienquanutc).
 
 ## License
 ```

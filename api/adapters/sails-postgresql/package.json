@@ -1,7 +1,7 @@
 {
   "name": "sails-postgresql",
   "version": "0.11.4-konga.1",
-  "description": "Konga's vendored copy of sails-postgresql@0.11.4, patched for PostgreSQL 12-17 and node-postgres 8.x",
+  "description": "Konga's vendored copy of sails-postgresql@0.11.4, patched for PostgreSQL 12-18 and node-postgres 8.x",
   "main": "lib/adapter.js",
   "license": "MIT",
   "private": true,
